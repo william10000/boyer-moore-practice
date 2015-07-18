@@ -90,13 +90,12 @@ def queryIndex(p, t, index):
             offsets.append(i)
     return offsets
 
-def approximate_match_index(p, t, k, hits, mm):
+def queryIndex_approx(p, t, index, mm):
     occurrences = []
-    for i in hits:
+    k = index.k
+    for i in index.query(p):
         mismatches = 0
         for j, mer in enumerate(p[k:]):
-            print(j)
-            print(mer)
             if mer != t[i+k+j]:
                 mismatches += 1
                 print('mismatch')
@@ -105,6 +104,33 @@ def approximate_match_index(p, t, k, hits, mm):
         if mismatches <=mm:
             occurrences.append(i)
     return occurrences
+
+class SubseqIndex(object):
+    """ Holds a subsequence index for a text T """
+
+    def __init__(self, t, k, ival):
+        """ Create index from all subsequences consisting of k characters
+            spaced ival positions apart.  E.g., SubseqIndex("ATAT", 2, 2)
+            extracts ("AA", 0) and ("TT", 1). """
+        self.k = k  # num characters per subsequence extracted
+        self.ival = ival  # space between them; 1=adjacent, 2=every other, etc
+        self.index = []
+        self.span = 1 + ival * (k - 1)
+        for i in range(len(t) - self.span + 1):  # for each subseq
+            self.index.append((t[i:i+self.span:ival], i))  # add (subseq, offset)
+        self.index.sort()  # alphabetize by subseq
+
+    def query(self, p):
+        """ Return index hits for first subseq of p """
+        subseq = p[:self.span:self.ival]  # query with first subseq
+        i = bisect.bisect_left(self.index, (subseq, -1))  # binary search
+        hits = []
+        while i < len(self.index):  # collect matching index entries
+            if self.index[i][0] != subseq:
+                break
+            hits.append(self.index[i][1])
+            i += 1
+        return hits
 
 # test cases
 t = 'ATGCCTTGCA'
@@ -122,7 +148,7 @@ t = 'ACTTGGAGATCTTTGAGGCTAGGTATTCGGGATCGAAGCTCATTTCGGGGATCGATTACGATATGGTGGGTATTC
 p = 'GGTATTCGGGA'
 index3 = Index(t, 3)
 print(queryIndex(p, t, index3))
-print(approximate_match_index(p, t, index3.k, index3.query(p), 7))
+print(queryIndex_approx(p, t, index3, 0))
 # end test cases
 
 
@@ -165,15 +191,32 @@ q3 = boyer_moore(p3, p3_bm, genome)
 genomeIndex = Index(genome, 8)
 p4 = 'GGCGCGGTGGCTCACGCCTGTAAT'
 
-print(queryIndex(p, t, index3))
-print(approximate_match_index(p, t, index3.k, index3.query(p), 7))
+offsetsExact = queryIndex(p4, genome, genomeIndex)
+offsets2mm = queryIndex_approx(p4, genome, genomeIndex, 2)
 
 # no more than 13 times based on k-mer indexing
+# 5 exact matches using queryIndex function
+
+# 1st attempt 10 hits
+
+# Question #5 -
+p5 = 'GGCGCGGTGGCTCACGCCTGTAAT'
+
+q5 = genomeIndex.query(p5)
+
+
+# Question #6
+p6 = 'GGCGCGGTGGCTCACGCCTGTAAT'
+genomeSubSeqIndex = SubseqIndex(genome, 8, 3)
 
 
 
+ind = SubseqIndex('ATATAT', 3, 2)
+print(ind.index)
 
+p = 'TTATAT'
+print(ind.query(p[0:]))
 
-
+print(ind.query(p[1:]))
 
 
