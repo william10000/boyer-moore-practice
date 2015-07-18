@@ -119,41 +119,40 @@ def queryIndex(p, t, index):
 
 def queryIndex_approx(p, t, index, mm): # modification of queryIndex function to use pigeon hole principle and kmers in p
 # checks before and after kmer index hits for up to mm mismatches
-# not quite working yet, probably too many matches    
+# returns correct indices, but does too many matches    
     occurrences = []
-    hits = []
+    hits = index.query(p) # initialize matches with 1st kmer in p
+    uniques = hits # matches indexed to where p would start in t
+    hits_raw = hits # non-unique matches
     k = index.k
-    for i in range(len(p)-k+1):
-        hits += index.query(p[i:])
-#        print(p[i:])
-    hits_raw = hits
-    hits = list(set(hits)) # convert to set then back to remove duplicates - this is also incorrect
+    for i in range(1, len(p)-k): # look for all k-mers in p that also match in t
+        indexTemp = index.query(p[i:]) # create temporary array of hits for each k-mer in p
+        for j in indexTemp:
+            if not (j-i) in uniques: # see if current hit referenced to a possible start position in t
+                print(j-i)
+                hits += [j]
+                uniques += [j-i] # append unique match list
+        hits_raw += indexTemp # list of all matches 
 
     for i in hits: # naive matching for before and after exact matches
-#        print(i, t[i:i+k])
         mismatches = 0
         exact = t[i:i+k] # this is the k-mer from p that matched t 
         p_ind = p.find(exact) # start of exact in p
-        print(p_ind)
-        print('before in p ', p[:p_ind],' kmer in p ', exact, ' after in p ', p[p_ind+k:])
-#        print('before in t ', t[i-p_ind:i],' kmer in t ', t[i:i+k], ' after in t ', t[i+k:i+k+len(p)-p_ind])
+
         for j in range(p_ind): # before kmer
             if p[j] != t[i-p_ind+j]:
                 mismatches += 1
-#                print('mismatch before kmer')
                 if mismatches > mm:
                     break
 
         for j in range(p_ind+k, len(p)): # after kmer
             if p[j] !=  t[i+j-p_ind]:
                 mismatches += 1
-#                print('mismatch after kmer')
                 if mismatches > mm:
                     break
         if mismatches <= mm:
-#            print('match found')
             occurrences.append(i-p_ind) # adding p_ind gets us closer
-    return occurrences, hits, hits_raw
+    return occurrences, hits, hits_raw, uniques
 
 # test cases
 t = 'ATGCCTTGCA'
