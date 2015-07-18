@@ -117,24 +117,43 @@ def queryIndex(p, t, index):
             offsets.append(i)
     return offsets
 
-def queryIndex_approx(p, t, index, mm): # modification of queryIndex function to allow mm mismatches
+def queryIndex_approx(p, t, index, mm): # modification of queryIndex function to use pigeon hole principle and kmers in p
+# checks before and after kmer index hits for up to mm mismatches
+# not quite working yet, probably too many matches    
     occurrences = []
     hits = []
     k = index.k
     for i in range(len(p)-k+1):
-        hits += index.query(p[i])
-    hits = list(set(hits))
-    for i in hits: # naive matching for p b/c it's short
+        hits += index.query(p[i:])
+#        print(p[i:])
+    hits_raw = hits
+    hits = list(set(hits)) # convert to set then back to remove duplicates - this is also incorrect
+
+    for i in hits: # naive matching for before and after exact matches
+#        print(i, t[i:i+k])
         mismatches = 0
-        for j, mer in enumerate(p[k:]): # we want the mer in p as well as an index to look up t
-            if mer != t[i+k+j]:
+        exact = t[i:i+k] # this is the k-mer from p that matched t 
+        p_ind = p.find(exact) # start of exact in p
+        print(p_ind)
+        print('before in p ', p[:p_ind],' kmer in p ', exact, ' after in p ', p[p_ind+k:])
+#        print('before in t ', t[i-p_ind:i],' kmer in t ', t[i:i+k], ' after in t ', t[i+k:i+k+len(p)-p_ind])
+        for j in range(p_ind): # before kmer
+            if p[j] != t[i-p_ind+j]:
                 mismatches += 1
-#                print('mismatch')
-            if mismatches > mm:
-                break
-        if mismatches <=mm:
-            occurrences.append(i)
-    return occurrences
+#                print('mismatch before kmer')
+                if mismatches > mm:
+                    break
+
+        for j in range(p_ind+k, len(p)): # after kmer
+            if p[j] !=  t[i+j-p_ind]:
+                mismatches += 1
+#                print('mismatch after kmer')
+                if mismatches > mm:
+                    break
+        if mismatches <= mm:
+#            print('match found')
+            occurrences.append(i-p_ind) # adding p_ind gets us closer
+    return occurrences, hits, hits_raw
 
 # test cases
 t = 'ATGCCTTGCA'
@@ -196,21 +215,24 @@ genomeIndex = Index(genome, 8)
 p4 = 'GGCGCGGTGGCTCACGCCTGTAAT'
 
 offsetsExact = queryIndex(p4, genome, genomeIndex)
-offsets2mm = queryIndex_approx(p4, genome, genomeIndex, 2) # 19 items based on Q6
+offsets2mm = queryIndex_approx(p4, genome, genomeIndex, 0) # 19 items based on Q6
 
 # no more than 13 times based on k-mer indexing
 # 5 exact matches using queryIndex function
 
 # 1st attempt 10 hits is incorrect - 13 exact kmer hits returned - need to modify function to return hits with 2 mismatches
-# 2nd attempt, using pigeon-hole principle, find index hits for all kmers in p
-
+# 2nd attempt 19 hits based on function from Q6
 
 # Question #5 -
 p5 = 'GGCGCGGTGGCTCACGCCTGTAAT'
 
 q5 = genomeIndex.query(p5)
+len(queryIndex_approx(p4, genome, genomeIndex, 0)[1])
 
 # 1st attempt len(q5) ] 13 is incorrect
+# 2nd attempt used pigeon-hole principle to assume that exact kmer matches mean no more than 2 matches before or after the kmer
+len(queryIndex_approx(p4, genome, genomeIndex, 0)[1]) # gives 446 as total number of hits returned is also incorrect
+
 
 # Question #6
 
@@ -228,8 +250,8 @@ def approximate_ssmatch(p, t, index, mm):
                     if mer != t[indStart+j]:
                         mismatches += 1
     #                    print('mismatch')
-                    if mismatches > mm:
-                        break
+                        if mismatches > mm:
+                            break
                 if mismatches <=mm:
                     occurrences.append(indStart)
     return occurrences, hits
