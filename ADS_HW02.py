@@ -82,29 +82,6 @@ class Index(object):
             i += 1
         return hits
 
-def queryIndex(p, t, index):
-    k = index.k # k-mer size used to create the index
-    offsets = []
-    for i in index.query(p):
-        if p[k:] == t[i+k:i+len(p)]:  # verify that rest of P matches
-            offsets.append(i)
-    return offsets
-
-def queryIndex_approx(p, t, index, mm):
-    occurrences = []
-    k = index.k
-    for i in index.query(p):
-        mismatches = 0
-        for j, mer in enumerate(p[k:]):
-            if mer != t[i+k+j]:
-                mismatches += 1
-                print('mismatch')
-            if mismatches > mm:
-                break
-        if mismatches <=mm:
-            occurrences.append(i)
-    return occurrences
-
 class SubseqIndex(object):
     """ Holds a subsequence index for a text T """
 
@@ -131,6 +108,29 @@ class SubseqIndex(object):
             hits.append(self.index[i][1])
             i += 1
         return hits
+
+def queryIndex(p, t, index):
+    k = index.k # k-mer size used to create the index
+    offsets = []
+    for i in index.query(p):
+        if p[k:] == t[i+k:i+len(p)]:  # verify that rest of P matches
+            offsets.append(i)
+    return offsets
+
+def queryIndex_approx(p, t, index, mm): # modification of queryIndex function to allow mm mismatches
+    occurrences = []
+    k = index.k
+    for i in index.query(p): # naive matching for p b/c it's short
+        mismatches = 0
+        for j, mer in enumerate(p[k:]): # we want the mer in p as well as an index to look up t
+            if mer != t[i+k+j]:
+                mismatches += 1
+                print('mismatch')
+            if mismatches > mm:
+                break
+        if mismatches <=mm:
+            occurrences.append(i)
+    return occurrences
 
 # test cases
 t = 'ATGCCTTGCA'
@@ -206,17 +206,31 @@ q5 = genomeIndex.query(p5)
 
 
 # Question #6
+
+def approximate_ssmatch(p, t, index, mm):
+    occurrences = []
+    hits = []
+#    p_bm = bm.BoyerMoore(p)
+    for i in range(int(len(p)/index.k)): # go through hits for differents subsequences of p; need to confirm this is sufficient
+        hits += (index.query(p[i:]))
+        for hit in index.query(p[i:]): # go through hits for each matching subsequence
+            indStart = hit-i # possible occurence is left of subsequence by i
+            if not indStart in occurrences:
+                mismatches = 0
+                for j, mer in enumerate(p): # we want the mer in p as well as an index to look up t
+                    if mer != t[indStart+j]:
+                        mismatches += 1
+    #                    print('mismatch')
+                    if mismatches > mm:
+                        break
+                if mismatches <=mm:
+                    occurrences.append(indStart)
+    return occurrences, hits
+
+
 p6 = 'GGCGCGGTGGCTCACGCCTGTAAT'
 genomeSubSeqIndex = SubseqIndex(genome, 8, 3)
 
-
-
-ind = SubseqIndex('ATATAT', 3, 2)
-print(ind.index)
-
-p = 'TTATAT'
-print(ind.query(p[0:]))
-
-print(ind.query(p[1:]))
-
+q6 = approximate_ssmatch(p6, genome, genomeSubSeqIndex, 0)
+q6Answer = len(set(q6[1])) # 79
 
