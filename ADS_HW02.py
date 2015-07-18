@@ -4,8 +4,11 @@ Created on Sun Jul 12 06:30:51 2015
 
 @author: Temporary Account
 """
-# Coursera Algorithms for DNA sequencing Homework #1
+# Coursera Algorithms for DNA sequencing Homework #2
 # William Wan
+
+# import previously written Boyer-Moore preprocessing algorithm written
+import bm_preproc as bm
 
 def readGenome(filename):
     genome = ''
@@ -16,141 +19,86 @@ def readGenome(filename):
                 genome += line.rstrip()
     return genome
     
-def reverseComplement(s):
-    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
-    t = ''
-    for base in s:
-        t = complement[base] + t
-    return t
-
 def naive(p, t):
     occurrences = []
-    
+    comp = 0 # initialize # of character comparisons
     for i in range(len(t) - len(p) + 1):  # loop over alignments
         match = True
         for j in range(len(p)):  # loop over characters
+            comp += 1
             if t[i+j] != p[j]:  # compare characters
                 match = False
                 break
         if match:
             occurrences.append(i)  # all chars matched; record
-    return occurrences
+    return occurrences, comp, i+1 # returns indicies of matches, # character comparisons, # of alignments tried
 
-def naive_with_rc(p, t):
+# copied from class practical
+def boyer_moore(p, p_bm, t):
+    """ Do Boyer-Moore matching """
+    i = 0
     occurrences = []
-    p_rc = reverseComplement(p)
-    for i in range(len(t) - len(p) + 1):  # loop over alignments
-        match = True
-        for j in range(len(p)):  # loop over characters
-            if t[i+j] != p[j]:  # compare characters in original string
-                match = False
+    comp = 0 # initialize # of character comparisons
+    aligns = 0 # initializes # of alignments tried
+    while i < len(t) - len(p) + 1:
+        shift = 1
+        mismatched = False
+        for j in range(len(p)-1, -1, -1):
+            comp += 1
+            if p[j] != t[i+j]:
+                skip_bc = p_bm.bad_character_rule(j, t[i+j])
+                skip_gs = p_bm.good_suffix_rule(j)
+                shift = max(shift, skip_bc, skip_gs)
+                mismatched = True
                 break
-        if match == False: # check reverse complement if forward seq doesn't match
-            match = True
-            for j in range(len(p)):  # loop over characters
-                if t[i+j] != p_rc[j]:  # compare characters in rev. complement
-                    match = False
-                    break
-        if match:
-            occurrences.append(i)  # all chars matched; record
-    return occurrences
+        if not mismatched:
+            occurrences.append(i)
+            skip_gs = p_bm.match_skip()
+            shift = max(shift, skip_gs)
+        i += shift
+        aligns += 1
+    return occurrences, comp, aligns
 
-genome = readGenome('lambda_virus.fa')
 
-q1 = naive_with_rc('AGGT', genome)
-q2 = naive_with_rc('TTAA', genome)
+# test cases
+t = 'ATGCCTTGCA'
+p = 'GCCT'
+p_bm = bm.BoyerMoore(p, alphabet='ACGT')
+t1 = boyer_moore(p, p_bm, t)
+# output of  - naive(p, t) is ([2], 10, 7) - seems correct
 
-q3 = naive_with_rc('ACTAAGT', genome)
-q4 = naive_with_rc('AGTCGA', genome)
 
-q5 = naive_2mm('TTCAAGCC', genome)
-q6 = naive_2mm('AGGAGGTT', genome)
 
-#1 q1 - q6 are probably correct
+# main body for quiz problems
 
-################ question 7
-def readFastq(filename):
-    sequences = []
-    qualities = []
-    with open(filename) as fh:
-        while True:
-            fh.readline()  # skip name line
-            seq = fh.readline().rstrip()  # read base sequence
-            fh.readline()  # skip placeholder line
-            qual = fh.readline().rstrip() # base quality line
-            if len(seq) == 0:
-                break
-            sequences.append(seq)
-            qualities.append(qual)
-    return sequences, qualities
+genome = readGenome('chr1.GRCh38.excerpt.fasta')
 
-def phred33ToQ(qual):
-    return ord(qual) - 33
+# Question #1 - How many alignments does the naive exact matching algorithm try 
+# when matching the string 
+p1 = 'GGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGG'
+q1 = naive(p1, genome)
 
-def createHist(qualities):
-    # Create a histogram of quality scores
-    hist = [0]*50
-    for qual in qualities:
-        for phred in qual:
-            q = phred33ToQ(phred)
-            hist[q] += 1
-    return hist
+# 1st attempt ([56922], 984143, 799954)
 
-def findGCByPos(reads):
-    ''' Find the GC ratio at each position in the read '''
+# Question #2 - How many character comparisons does the naive exact matching 
+# algorithm try when matching the string 
+p2 = 'GGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGG'
+q2 = naive(p2, genome)
 
-    # Keep track of the number of G/C bases and the total number of bases at each position
-    gc = [0] * 100
-    totals = [0] * 100
+# 1st attempt ([56922], 984143, 799954)
 
-    for read in reads:
-        for i in range(len(read)):
-            if read[i] == 'C' or read[i] == 'G':
-                gc[i] += 1
-            totals[i] += 1
-    
-    # Divide G/C counts by total counts to get the average at each position
-    for i in range(len(gc)):
-        if totals[i] > 0:
-            gc[i] /= float(totals[i])
-    return gc
+# Question #3 - How many alignments does Boyer-Moore try 
+p3 = 'GGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGG'
+p3_bm = bm.BoyerMoore(p3, alphabet='ACGT')
+q3 = boyer_moore(p3, p3_bm, genome)
 
-def totQualByPos(quals):
-    totals = [0] * 100
-    for reads in quals:
-        for i in range(len(reads)):
-            totals[i] += phred33ToQ(reads[i])
-    return totals
+# 1st attempt ([56922], 165191, 127974)
 
-seqs, quals = readFastq('ERR037900_1.first1000.fastq')
 
-h = createHist(quals)
-gc = findGCByPos(seqs)
-posQuals = totQualByPos(quals)
 
-# print(h)
 
-# Plot the histograms
 
-import matplotlib.pyplot as plt
-#plt.plot(range(len(h)), h)
-#plt.show()
 
-plt.plot(range(len(gc)), gc)
-plt.show()
 
-plt.plot(range(len(posQuals)), posQuals)
-plt.show()
 
-q7 = gc
-q72 = posQuals
-
-print('Answers are: ')
-print('Q1: ', len(q1))
-print('Q2: ', len(q2))
-print('Q3: ', q3[0])
-print('Q4: ', q4[0])
-print('Q5: ', len(q5))
-print('Q6: ', q6[0])
-print('Q7: ', gc.index(min(gc)))
 
