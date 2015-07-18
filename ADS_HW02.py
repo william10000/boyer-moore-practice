@@ -119,13 +119,17 @@ def queryIndex(p, t, index):
 
 def queryIndex_approx(p, t, index, mm): # modification of queryIndex function to allow mm mismatches
     occurrences = []
+    hits = []
     k = index.k
-    for i in index.query(p): # naive matching for p b/c it's short
+    for i in range(len(p)-k+1):
+        hits += index.query(p[i])
+    hits = list(set(hits))
+    for i in hits: # naive matching for p b/c it's short
         mismatches = 0
         for j, mer in enumerate(p[k:]): # we want the mer in p as well as an index to look up t
             if mer != t[i+k+j]:
                 mismatches += 1
-                print('mismatch')
+#                print('mismatch')
             if mismatches > mm:
                 break
         if mismatches <=mm:
@@ -162,21 +166,21 @@ genome = readGenome('chr1.GRCh38.excerpt.fasta')
 p1 = 'GGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGG'
 q1 = naive(p1, genome)
 
-# 1st attempt ([56922], 984143, 799954)
+# 1st attempt ([56922], 984143, 799954) - 799954 is correct
 
 # Question #2 - How many character comparisons does the naive exact matching 
 # algorithm try when matching the string 
 p2 = 'GGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGG'
 q2 = naive(p2, genome)
 
-# 1st attempt ([56922], 984143, 799954)
+# 1st attempt ([56922], 984143, 799954) - 984143 is correct
 
 # Question #3 - How many alignments does Boyer-Moore try 
 p3 = 'GGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGG'
 p3_bm = bm.BoyerMoore(p3, alphabet='ACGT')
 q3 = boyer_moore(p3, p3_bm, genome)
 
-# 1st attempt ([56922], 165191, 127974)
+# 1st attempt ([56922], 165191, 127974) - 127974 is correct
 
 
 # Question #4 - 
@@ -192,18 +196,21 @@ genomeIndex = Index(genome, 8)
 p4 = 'GGCGCGGTGGCTCACGCCTGTAAT'
 
 offsetsExact = queryIndex(p4, genome, genomeIndex)
-offsets2mm = queryIndex_approx(p4, genome, genomeIndex, 2)
+offsets2mm = queryIndex_approx(p4, genome, genomeIndex, 2) # 19 items based on Q6
 
 # no more than 13 times based on k-mer indexing
 # 5 exact matches using queryIndex function
 
-# 1st attempt 10 hits
+# 1st attempt 10 hits is incorrect - 13 exact kmer hits returned - need to modify function to return hits with 2 mismatches
+# 2nd attempt, using pigeon-hole principle, find index hits for all kmers in p
+
 
 # Question #5 -
 p5 = 'GGCGCGGTGGCTCACGCCTGTAAT'
 
 q5 = genomeIndex.query(p5)
 
+# 1st attempt len(q5) ] 13 is incorrect
 
 # Question #6
 
@@ -231,6 +238,8 @@ def approximate_ssmatch(p, t, index, mm):
 p6 = 'GGCGCGGTGGCTCACGCCTGTAAT'
 genomeSubSeqIndex = SubseqIndex(genome, 8, 3)
 
-q6 = approximate_ssmatch(p6, genome, genomeSubSeqIndex, 0)
-q6Answer = len(set(q6[1])) # 79
+q6 = approximate_ssmatch(p6, genome, genomeSubSeqIndex, 2)
+# 19 offsets matched p6 with up to 2 mismatches
+q6Answer = len(set(q6[1])) # 79 hits is correct
+
 
