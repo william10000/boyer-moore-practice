@@ -119,7 +119,8 @@ def queryIndex(p, t, index):
 
 def queryIndex_approx(p, t, index, mm): # modification of queryIndex function to use pigeon hole principle and kmers in p
 # checks before and after kmer index hits for up to mm mismatches
-# returns correct indices, but does too many matches    
+# returns correct indices, total hits and total unique hits
+# assumes 8-mer index and 24 mer pattern
     occurrences = []
     hits = [] # initialize matches with 1st kmer in p
     uniques = [] # matches indexed to where p would start in t
@@ -132,10 +133,10 @@ def queryIndex_approx(p, t, index, mm): # modification of queryIndex function to
             if (j-i*k) not in uniques: # see if current hit referenced to start of p has been found already
                 hits += [j]
                 uniques += [j-i*k] # append unique match list  
-#                print(j, j-i)
 
-        hits_raw += indexTemp # list of all matches 
+        hits_raw += indexTemp # list of all index hits 
 
+#    only checks unique matches so don't need to convert to set
     for i in hits: # naive matching for before and after exact matches
         mismatches = 0
         exact = t[i:i+k] # this is the k-mer from p that matched t 
@@ -156,7 +157,6 @@ def queryIndex_approx(p, t, index, mm): # modification of queryIndex function to
             occurrences.append(i-p_ind) # adding p_ind gets us closer
     return occurrences, hits, hits_raw, uniques
 #   sum(uniques) < sum(hits) since uniques is list of matches WRT start of P
-#   now returns correct number of matches, unique index hits and total index hits
 
 
 # test cases
