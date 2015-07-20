@@ -121,22 +121,21 @@ def queryIndex_approx(p, t, index, mm): # modification of queryIndex function to
 # checks before and after kmer index hits for up to mm mismatches
 # returns correct indices, but does too many matches    
     occurrences = []
-    hits = index.query(p) # initialize matches with 1st kmer in p
-    uniques = hits # matches indexed to where p would start in t
-    hits_raw = index.query(p) # non-unique matches
+    hits = [] # initialize matches with 1st kmer in p
+    uniques = [] # matches indexed to where p would start in t
+    hits_raw = [] # non-unique matches
     k = index.k
-    for i in range(1, len(p)-k): # look for all k-mers in p that also match in t
-        indexTemp = index.query(p[i:]) # create temporary array of hits for each k-mer in p
+    for i in range(mm+1): # look for all k-mers in p that also match in t
+        indexTemp = index.query(p[i*k:]) # create temporary array of hits for each k-mer in p
 
         for j in indexTemp:
-#            print(not (j-i) in uniques)
-            if (j-i) not in uniques: # see if current hit referenced to start of p has been found already
+            if (j-i*k) not in uniques: # see if current hit referenced to start of p has been found already
                 hits += [j]
-                uniques += [j-i] # append unique match list
+                uniques += [j-i*k] # append unique match list  
+#                print(j, j-i)
 
         hits_raw += indexTemp # list of all matches 
 
-#    hits = list(hits)
     for i in hits: # naive matching for before and after exact matches
         mismatches = 0
         exact = t[i:i+k] # this is the k-mer from p that matched t 
@@ -157,6 +156,8 @@ def queryIndex_approx(p, t, index, mm): # modification of queryIndex function to
             occurrences.append(i-p_ind) # adding p_ind gets us closer
     return occurrences, hits, hits_raw, uniques
 #   sum(uniques) < sum(hits) since uniques is list of matches WRT start of P
+#   now returns correct number of matches, unique index hits and total index hits
+
 
 # test cases
 t = 'ATGCCTTGCA'
@@ -224,7 +225,7 @@ offsets2mm = queryIndex_approx(p4, genome, genomeIndex, 2) # 19 items based on Q
 # 5 exact matches using queryIndex function
 
 # 1st attempt 10 hits is incorrect - 13 exact kmer hits returned - need to modify function to return hits with 2 mismatches
-# 2nd attempt 19 hits based on function from Q6 (correct answer)
+# 2nd attempt 19 hits based current function
 
 
 # Question #5 -
@@ -238,6 +239,11 @@ len(queryIndex_approx(p4, genome, genomeIndex, 0)[1])
 len(queryIndex_approx(p4, genome, genomeIndex, 0)[1]) # gives 446 as total number of hits returned is also incorrect
 
 # 117 is also wrong even though function returns correct number of occurrences
+# 221 also wrong when using 
+# 95 is also wrong searching for middle k-mers in p
+# 386 also wrong searching for all k-mers in p
+# correct answer is 90 found on git hub and only checked 1st, middle and last k-mer in p
+# function now retuns correct matches & correct & of total index hits - note total index hits is greater than unique index hits
 
 
 # Question #6
